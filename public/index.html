@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Analytical Platform</title>
+
+  <script>
+    (function () {
+      var s = document.createElement('script')
+      s.src = 'https:' + '/' + '/' + 'cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
+      s.defer = true
+      document.head.appendChild(s)
+    })()
+  </script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      background: #0b1020;
+      color: #e9ecf1
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px
+    }
+
+    h1 {
+      font-size: 22px;
+      margin: 0 0 16px
+    }
+
+    .card {
+      background: #121a33;
+      border: 1px solid #1f2a52;
+      border-radius: 14px;
+      padding: 16px
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px
+    }
+
+    .controls {
+      grid-column: span 12;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px
+    }
+
+    .controls .item {
+      grid-column: span 3
+    }
+
+    .controls .item.wide {
+      grid-column: span 6
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: #aab3c9;
+      margin-bottom: 6px
+    }
+
+    select,
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #2a386e;
+      background: #0e1530;
+      color: #e9ecf1;
+      outline: none
+    }
+
+    button {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid #2a386e;
+      background: #1d2b57;
+      color: #e9ecf1;
+      cursor: pointer
+    }
+
+    button:hover {
+      filter: brightness(1.1)
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    .metric {
+      flex: 1 1 180px
+    }
+
+    .metric .k {
+      font-size: 12px;
+      color: #aab3c9
+    }
+
+    .metric .v {
+      font-size: 20px;
+      margin-top: 4px
+    }
+
+    .chart {
+      grid-column: span 12
+    }
+
+    .error {
+      color: #ffb4b4;
+      margin-top: 10px;
+      white-space: pre-wrap
+    }
+
+    .meta {
+      color: #aab3c9;
+      font-size: 12px;
+      margin-top: 8px
+    }
+
+    @media (max-width:900px) {
+      .controls .item {
+        grid-column: span 6
+      }
+
+      .controls .item.wide {
+        grid-column: span 12
+      }
+    }
+
+    @media (max-width:560px) {
+      .controls .item {
+        grid-column: span 12
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>Time-Series Analytics</h1>
+    <div class="card">
+      <div class="controls">
+        <div class="item">
+          <label>Field</label>
+          <select id="field">
+            <option value="field1">field1</option>
+            <option value="field2">field2</option>
+            <option value="field3">field3</option>
+          </select>
+        </div>
+        <div class="item">
+          <label>Start date</label>
+          <input id="start" type="date">
+        </div>
+        <div class="item">
+          <label>End date</label>
+          <input id="end" type="date">
+        </div>
+        <div class="item">
+          <label>Chart</label>
+          <select id="chartType">
+            <option value="line">Line</option>
+            <option value="bar">Bar</option>
+          </select>
+        </div>
+        <div class="item wide">
+          <label>Pagination</label>
+          <div class="grid" style="grid-template-columns:repeat(12,1fr);gap:12px">
+            <div style="grid-column:span 3">
+              <input id="page" type="number" min="1" value="1" placeholder="page">
+            </div>
+            <div style="grid-column:span 3">
+              <input id="limit" type="number" min="1" max="5000" value="500" placeholder="limit">
+            </div>
+            <div style="grid-column:span 6">
+              <button id="load">Load</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="meta" id="meta"></div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="metric card">
+          <div class="k">Average</div>
+          <div class="v" id="avg">—</div>
+        </div>
+        <div class="metric card">
+          <div class="k">Minimum</div>
+          <div class="v" id="min">—</div>
+        </div>
+        <div class="metric card">
+          <div class="k">Maximum</div>
+          <div class="v" id="max">—</div>
+        </div>
+        <div class="metric card">
+          <div class="k">Std dev</div>
+          <div class="v" id="stdDev">—</div>
+        </div>
+      </div>
+
+      <div class="chart" style="margin-top:16px;height:360px">
+        <canvas id="chart"></canvas>
+      </div>
+
+
+      <div class="error" id="error"></div>
+    </div>
+  </div>
+
+  <script>
+    const els = {
+      field: document.getElementById('field'),
+      start: document.getElementById('start'),
+      end: document.getElementById('end'),
+      chartType: document.getElementById('chartType'),
+      load: document.getElementById('load'),
+      avg: document.getElementById('avg'),
+      min: document.getElementById('min'),
+      max: document.getElementById('max'),
+      stdDev: document.getElementById('stdDev'),
+      meta: document.getElementById('meta'),
+      error: document.getElementById('error'),
+      page: document.getElementById('page'),
+      limit: document.getElementById('limit')
+    }
+
+    const fmt = (v) => {
+      if (v === null || v === undefined || Number.isNaN(v)) return '—'
+      const n = Number(v)
+      if (!Number.isFinite(n)) return '—'
+      return String(n)
+    }
+
+    const qs = (params) => {
+      const u = new URLSearchParams()
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== null && v !== undefined && v !== '') u.set(k, v)
+      })
+      return u.toString()
+    }
+
+    let chart
+
+    function setError(msg) {
+      els.error.textContent = msg || ''
+    }
+
+
+    function waitForChart(timeoutMs) {
+      const start = Date.now()
+      return new Promise((resolve, reject) => {
+        const tick = () => {
+          if (window.Chart) return resolve()
+          if (Date.now() - start > timeoutMs) return reject(new Error('Chart library failed to load'))
+          setTimeout(tick, 50)
+        }
+        tick()
+      })
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const msg = data && data.error ? data.error : `Request failed (${res.status})`
+        const details = data && data.details ? `\n${JSON.stringify(data.details, null, 2)}` : ''
+        throw new Error(msg + details)
+      }
+      return data
+    }
+
+    function renderChart(type, points, field) {
+      const canvas = document.getElementById('chart')
+
+      const existing = Chart.getChart(canvas)
+      if (existing) existing.destroy()
+
+      chart = new Chart(canvas.getContext('2d'), {
+        type,
+        data: {
+          datasets: [{
+            label: field,
+            data: points,
+            spanGaps: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'linear',
+              ticks: {
+                callback: (v) => new Date(v).toISOString().slice(0, 10),
+                maxTicksLimit: 10
+              }
+            },
+            y: { beginAtZero: false }
+          }
+        }
+      })
+    }
+
+
+
+    async function load() {
+      await waitForChart(5000)
+      setError('')
+      const field = els.field.value
+      const start_date = els.start.value
+      const end_date = els.end.value
+      const chartType = els.chartType.value
+      const page = els.page.value
+      const limit = els.limit.value
+
+      const params = { field, start_date, end_date, page, limit }
+      const dataUrl = `/api/measurements?${qs(params)}`
+      const metricsUrl = `/api/measurements/metrics?${qs({ field, start_date, end_date })}`
+
+      const [series, metrics] = await Promise.all([
+        fetchJson(dataUrl),
+        fetchJson(metricsUrl)
+      ])
+
+      els.meta.textContent = `records: ${series.meta.total}, page: ${series.meta.page}, limit: ${series.meta.limit}`
+
+      els.avg.textContent = fmt(metrics.avg)
+      els.min.textContent = fmt(metrics.min)
+      els.max.textContent = fmt(metrics.max)
+      els.stdDev.textContent = fmt(metrics.stdDev)
+      
+     const points = series.data
+  .map(d => {
+    const y = Number(d[field])
+    const x = new Date(d.timestamp).getTime()
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+    return { x, y }
+  })
+  .filter(Boolean)
+
+renderChart(chartType, points, field)
+
+
+
+    }
+
+    els.load.addEventListener('click', () => {
+      load().catch(e => setError(e.message))
+    })
+
+    const today = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    const yyyy = today.getUTCFullYear()
+    const mm = pad(today.getUTCMonth() + 1)
+    const dd = pad(today.getUTCDate())
+    els.end.value = `${yyyy}-${mm}-${dd}`
+    const start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const sy = start.getUTCFullYear()
+    const sm = pad(start.getUTCMonth() + 1)
+    const sd = pad(start.getUTCDate())
+    els.start.value = `${sy}-${sm}-${sd}`
+
+    load().catch(e => setError(e.message))
+  </script>
+</body>
+
+</html>

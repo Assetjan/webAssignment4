@@ -1,0 +1,15 @@
+{
+  "name": "analytical-platform",
+  "version": "1.0.0",
+  "description": "Analytical platform for time-series data in MongoDB with visualization",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.5.4"
+  }
+}
